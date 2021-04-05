@@ -1,3 +1,7 @@
+import 'package:bytebank/components/failure_dialog.dart';
+import 'package:bytebank/components/progress.dart';
+import 'package:bytebank/components/success_dialog.dart';
+import 'package:bytebank/components/transaction_dialog_authentication.dart';
 import 'package:bytebank/http/transaction_webclient.dart';
 import 'package:bytebank/models/contact.dart';
 import 'package:bytebank/models/transaction.dart';
@@ -15,6 +19,8 @@ class TransactionForm extends StatefulWidget {
 class _TransactionFormState extends State<TransactionForm> {
   final TextEditingController _valueController = TextEditingController();
 
+  bool _processing = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -27,6 +33,10 @@ class _TransactionFormState extends State<TransactionForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              Visibility(
+                child: Progress("Processing transaction..."),
+                visible: this._processing,
+              ),
               Text(
                 widget.contact.name,
                 style: TextStyle(
@@ -63,11 +73,41 @@ class _TransactionFormState extends State<TransactionForm> {
                           double.tryParse(_valueController.text);
                       final transactionCreated =
                           Transaction(value, widget.contact);
-                      widget.client.create(transactionCreated).then((transaction) {
-                        if (transaction != null) {
-                          Navigator.pop(context);
-                        }
-                      });
+
+                      showDialog(
+                          context: context,
+                          builder: (contextDialog) =>
+                              TransactionDialogAuthentication(
+                                onConfirm: (String password) {
+                                  this.setState(() {
+                                    this._processing = true;
+                                  });
+                                  widget.client
+                                      .create(transactionCreated, password)
+                                      .then((transaction) {
+                                    if (transaction != null) {
+                                      Navigator.pop(context);
+                                    }
+                                    this.setState(() {
+                                      this._processing = true;
+                                    });
+                                     showDialog(
+                                        context: context,
+                                        builder: (contextDialog) {
+                                          return SuccessDialog("Transaction executed success!!");
+                                        });
+                                  }).catchError((e) {
+                                    showDialog(
+                                        context: context,
+                                        builder: (contextDialog) {
+                                          return FailureDialog(e.message);
+                                        });
+                                    this.setState(() {
+                                      this._processing = true;
+                                    });
+                                  });
+                                },
+                              ));
                     },
                   ),
                 ),

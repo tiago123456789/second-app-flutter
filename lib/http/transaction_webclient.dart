@@ -24,14 +24,23 @@ class TransactionWebClient {
     return this._mapJsonToListEntity(response.body);
   }
 
-  Future<Transaction> create(Transaction transaction) async {
+  Future<Transaction> create(Transaction transaction, String password) async {
       final http.Response response =
           await this._client.post(Uri.https(Constants.BASE_URL, 'transactions'),
               headers: {
                 "Content-Type":"application/json",
-                "password":"1000",
+                "password": password,
               },
               body: jsonEncode(transaction.toJson()));
+        
+      if (response.statusCode == 400) {
+        throw Exception('there was an error');
+      }
+
+      if (response.statusCode == 401) {
+        throw Exception('authentication failed');
+      }
+
       final Map<String, dynamic> transactionCreated = jsonDecode(response.body);
       return Transaction.fromJson(transactionCreated);
     }
